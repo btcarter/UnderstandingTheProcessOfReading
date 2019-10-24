@@ -1,0 +1,35 @@
+---
+title: Understanding the Process of Reading
+author: Benjamin T. Carter
+date: 2019-10-24
+---
+
+## Environment
+
+```{r}
+library(dplyr)
+library(readxl)
+```
+
+## Data
+
+Here are the paths to the data.
+
+```{r}
+DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
+REPORT <- read.table(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t") # interest areas report
+ORTHOS <- read.table(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",") # ortho probabilities
+FIXS <- read_xls(file.path("FixList.xls")) # list of fixations
+```
+
+## Cleaning statistics
+```{Bash}
+DIRECT=~/Box/LukeLab/UnderstandingTheProcessOfReading/data
+DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
+
+mv $DATA ${DIRECT}/cleaning-UPoR1.txt
+DATA=${DIRECT}/cleaning-UPoR1.txt
+
+MERGED=${tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/Total\sFixations\sMerged\:\s\(\d\+\)/\1/' } # read in last two lines
+```
+
