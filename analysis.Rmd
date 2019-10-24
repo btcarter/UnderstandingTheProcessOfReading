@@ -30,6 +30,6 @@ DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
 mv $DATA ${DIRECT}/cleaning-UPoR1.txt
 DATA=${DIRECT}/cleaning-UPoR1.txt
 
-MERGED=${tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/Total\sFixations\sMerged\:\s\(\d\+\)/\1/' } # read in last two lines
+MERGED=${tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/Total\sFixations\sMerged\:\s(\d+)/\1/g' } # read in last two lines
 ```
 
