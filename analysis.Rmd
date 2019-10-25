@@ -6,32 +6,42 @@ date: 2019-10-24
 
 ## Environment
 
-```{r}
+```{r echo = FALSE, message = FALSE}
 library(dplyr)
 library(readxl)
 ```
 
-## Data
-
-Here are the paths to the data.
-
-```{r}
-DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
-REPORT <- read.table(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE) # interest areas report
-ORTHOS <- read.table(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",", fill = TRUE) # ortho probabilities
-FIXS <- read_xls(file.path(DIR,"FixList.xls")) # list of fixations
-```
-
 ## Cleaning statistics
-```{r}
+```{bash}
 DIRECT=~/Box/LukeLab/UnderstandingTheProcessOfReading/data
 DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
 
 mv $DATA ${DIRECT}/cleaning-UPoR1.txt
 DATA=${DIRECT}/cleaning-UPoR1.txt
 
-MERGED=${tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/Total\sFixations\sMerged\:\s(\d+)/\1/g' } # read in last two lines
-TEST=$(tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/.*(\d*)/\1/g')
-TEST=$(tail -2 cleaning-UPoR1.txt | head -1 | sed -E 's/\D+(\d+)/\1/g')
+MERGED=${tail -2 cleaning-UPoR1.txt} # read in last two lines
 ```
+
+```{r}
+MERGED <- 738
+DELETED <- 9985
+DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
+FIXS <- read.table(file.path(DIR,"FixList.xls"), header = TRUE, sep = "\t") # list of fixations
+TOTAL <- as.numeric(count(FIXS)) # count total number of fixation events
+REMAIN <- (MERGED + DELETED) / TOTAL
+REMAIN*100 # percent of fixations that were excluded or merged.
+```
+
+## Data
+
+Here are the paths to the data. Let's bring them together along common variables.
+
+```{r}
+REPORT <- read.table(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE) # interest areas report
+ORTHOS <- read.table(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",", fill = TRUE) # ortho probabilities
+
+COMBINED <- REPORT %>%
+  left_join(ORTHOS, by = c("IA_ID" = "IA_ID", "IA_LABEL" = "IA_LABEL"))
+```
+
 
