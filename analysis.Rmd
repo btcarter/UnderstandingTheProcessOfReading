@@ -32,16 +32,42 @@ REMAIN <- (MERGED + DELETED) / TOTAL
 REMAIN*100 # percent of fixations that were excluded or merged.
 ```
 
-## Data
+## Cleaning and Uniting the Data
 
 Here are the paths to the data. Let's bring them together along common variables.
 
 ```{r}
-REPORT <- read.table(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE) # interest areas report
-ORTHOS <- read.table(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",", fill = TRUE) # ortho probabilities
+# read in the data
+DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
+REPORT <- read.delim(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE, na.strings = ".") # interest areas report
+ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",", fill = TRUE) # ortho probabilities
 
+# clean the interest areas report
+REPORT$IA_ID <- as.numeric(REPORT$IA_ID) # making REPORT$IA_ID have the same class as ORTHOS so they can be compared during future join.
+REPORT$IA_DWELL_TIME <- as.numeric(REPORT$IA_DWELL_TIME) # make it a numeric for filtering later.
+REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
+
+
+# add orthographic values to dataframe
 COMBINED <- REPORT %>%
-  left_join(ORTHOS, by = c("IA_ID" = "IA_ID", "IA_LABEL" = "IA_LABEL"))
+  left_join(ORTHOS[,c("IA_ID","IA_LABEL","OrthoMatchModel")], by = c("IA_ID" = "IA_ID", "IA_LABEL" = "IA_LABEL"))
+
+rm(ORTHOS, REPORT) # unload unneeded data
+```
+
+## Summary Statistics
+```{r}
+# add this at some point.
 ```
 
 
+## Modeling and Analysis
+
+```{r}
+# load libraries
+library(lme4)
+library(lmerTest)
+
+# models to compute
+FIX.DIR <- lmer()
+```
