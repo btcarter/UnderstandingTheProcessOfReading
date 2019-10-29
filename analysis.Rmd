@@ -44,12 +44,23 @@ ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = 
 
 # clean the interest areas report
 REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
-REPORT$IA_LABEL <- as.character(REPORT$IA_LABEL)
-ORTHOS$IA_LABEL <- as.character(ORTHOS$IA_LABEL)
 
 # add orthographic values to dataframe
 COMBINED <- REPORT %>%
-  left_join(ORTHOS[,c("IA_ID","IA_LABEL", "TRIAL_INDEX","OrthoMatchModel")], by = c("IA_ID" = "IA_ID", "IA_LABEL" = "IA_LABEL", "TRIAL_INDEX" = "TRIAL_INDEX"))
+  left_join(
+    ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")],
+    by = c(
+      "textnumber" = "Text_ID",
+      "IA_ID" = "IA_ID"
+      )
+    )
+
+COMBINED <- REPORT %>%
+  merge(
+    ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")],
+    by.x = c("textnumber", "IA_ID"),
+    by.y = c("Text_ID", "IA_ID")
+    )
 
 rm(ORTHOS, REPORT) # unload unneeded data
 ```
