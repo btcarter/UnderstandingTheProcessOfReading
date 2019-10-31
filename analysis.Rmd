@@ -2,6 +2,7 @@
 title: Understanding the Process of Reading
 author: Benjamin T. Carter
 date: 2019-10-24
+output: word_document
 ---
 
 ## Environment
@@ -9,6 +10,7 @@ date: 2019-10-24
 ```{r echo = FALSE, message = FALSE}
 library(dplyr)
 library(readxl)
+library(tidyr)
 ```
 
 ## Cleaning statistics
@@ -32,7 +34,9 @@ REMAIN <- (MERGED + DELETED) / TOTAL
 REMAIN*100 # percent of fixations that were excluded or merged.
 ```
 
-## Cleaning and Uniting the Data
+## Behavior
+
+### Data Cleaning and Aggregation
 
 Here are the paths to the data. Let's bring them together along common variables.
 
@@ -45,33 +49,26 @@ ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = 
 # clean the interest areas report
 REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
 
-# add orthographic values to dataframe
-COMBINED <- REPORT %>%
-  left_join(
-    ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")],
-    by = c(
-      "textnumber" = "Text_ID",
-      "IA_ID" = "IA_ID"
-      )
-    )
+# aggregate the Provo Corpus and join to the interest areas report
+COMBINED <- ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")] %>% 
+  group_by(Text_ID, IA_ID) %>%
+  summarize(mean_OrthoMatchModel = mean(OrthoMatchModel)) %>%
+  right_join(REPORT,
+             by = c("Text_ID" = "textnumber", "IA_ID" = "IA_ID")
+             )
 
-COMBINED <- REPORT %>%
-  merge(
-    ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")],
-    by.x = c("textnumber", "IA_ID"),
-    by.y = c("Text_ID", "IA_ID")
-    )
-
+COMBINED <- COMBINED[!is.na(COMBINED$mean_OrthoMatchModel),] # remove na values
 rm(ORTHOS, REPORT) # unload unneeded data
+
+# change classes
+COMBINED$windowcondition <- as.factor(COMBINED$windowcondition)
+COMBINED$Text_ID <- as.factor(COMBINED$Text_ID)
+COMBINED$IA_ID <- as.factor(COMBINED$IA_ID)
+
+
 ```
 
-## Summary Statistics
-```{r}
-# add this at some point.
-```
-
-
-## Modeling and Analysis
+### Models
 
 ```{r}
 # load libraries
@@ -79,5 +76,24 @@ library(lme4)
 library(lmerTest)
 
 # models to compute
-FIX.DIR <- lmer()
+firstFixation <- lmer(
+  IA_FIRST_FIXATION_DURATION ~ windowcondition +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1 + windowcondition|Text_ID),
+  data = COMBINED
+  )
+
+firstFixation <- lmer(
+  IA_FIRST_FIXATION_DURATION ~ windowcondition +
+    (1|RECORDING_SESSION_LABEL) +
+    (1|Text_ID),
+  data = COMBINED
+  )
+
+nextSaccade <- lmer()
+```
+
+### Summary Statistics
+```{r}
+# add at some point
 ```
