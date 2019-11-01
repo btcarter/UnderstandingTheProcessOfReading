@@ -2,27 +2,32 @@
 title: Understanding the Process of Reading
 author: Benjamin T. Carter
 date: 2019-10-24
-output: word_document
+output: html_document
 ---
 
 ## Environment
 
-```{r echo = FALSE, message = FALSE}
+```{r message = FALSE}
 library(dplyr)
 library(readxl)
 library(tidyr)
 ```
 
 ## Cleaning statistics
+
+These are some shortcuts that can be used to view the cleaning stats via command line. I've commented them out since they only need to be run once.
+
 ```{bash}
-DIRECT=~/Box/LukeLab/UnderstandingTheProcessOfReading/data
-DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
+# DIRECT=~/Box/LukeLab/UnderstandingTheProcessOfReading/data
+# DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
 
-mv $DATA ${DIRECT}/cleaning-UPoR1.txt
-DATA=${DIRECT}/cleaning-UPoR1.txt
+# mv $DATA ${DIRECT}/cleaning-UPoR1.txt
+# DATA=${DIRECT}/cleaning-UPoR1.txt
 
-MERGED=${tail -2 cleaning-UPoR1.txt} # read in last two lines
+# tail -2 ${DATA}/cleaning-UPoR1.txt # read in last two lines
 ```
+
+The stats were then taken to compute how many fix
 
 ```{r}
 MERGED <- 738
@@ -48,6 +53,11 @@ ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = 
 
 # clean the interest areas report
 REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
+REPORT$RECORDING_SESSION_LABEL <- tolower(REPORT$RECORDING_SESSION_LABEL) # make label case consistent
+
+exclude <- c("s32", "s46", "s53", "s54", "s56", "s57", "s59", "s60", "s63") # exclude messy data
+REPORT <- REPORT %>% subset(!(RECORDING_SESSION_LABEL %in% exclude))
+
 
 # aggregate the Provo Corpus and join to the interest areas report
 COMBINED <- ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")] %>% 
@@ -60,29 +70,43 @@ COMBINED <- ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")] %>%
 COMBINED <- COMBINED[!is.na(COMBINED$mean_OrthoMatchModel),] # remove na values
 rm(ORTHOS, REPORT) # unload unneeded data
 
+# need to add demographic data to this too!
+
 # change classes
 COMBINED$windowcondition <- as.factor(COMBINED$windowcondition)
 COMBINED$Text_ID <- as.factor(COMBINED$Text_ID)
 COMBINED$IA_ID <- as.factor(COMBINED$IA_ID)
 
+# add variable for how far into a word someone fixated
+COMBINED <- COMBINED %>%
+  mutate(
+    FIRST_LANDING = (IA_FIRST_FIXATION_X - IA_LEFT) / (IA_RIGHT - IA_LEFT)
+  )
+```
+
+### Summary Statistics
+```{r}
+vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING")
+COMBINED %>%
+  select(vars) %>%
+  describeBy(group = "windowcondition")
+
+
+
+ggplot(COMBINED,
+       aes(IA_FIRST_FIXATION_DURATION)) + 
+  geom_density()
 
 ```
 
 ### Models
-
 ```{r}
 # load libraries
 library(lme4)
 library(lmerTest)
 
-# models to compute
-firstFixation <- lmer(
-  IA_FIRST_FIXATION_DURATION ~ windowcondition +
-    (1 + windowcondition|RECORDING_SESSION_LABEL) +
-    (1 + windowcondition|Text_ID),
-  data = COMBINED
-  )
-
+# models
+  # first fixation duration
 firstFixation <- lmer(
   IA_FIRST_FIXATION_DURATION ~ windowcondition +
     (1|RECORDING_SESSION_LABEL) +
@@ -90,10 +114,14 @@ firstFixation <- lmer(
   data = COMBINED
   )
 
-nextSaccade <- lmer()
+  # landing zone
+landing <- lmer(
+  FIRST_LANDING ~ windowcondition + 
+    (1|RECORDING_SESSION_LABEL),
+  data = COMBINED
+)
+  # next saccade
+# nextSaccade <- lmer()
 ```
 
-### Summary Statistics
-```{r}
-# add at some point
-```
+
