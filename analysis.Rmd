@@ -63,6 +63,7 @@ REPORT <- REPORT %>% subset(!(RECORDING_SESSION_LABEL %in% exclude))
 COMBINED <- ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel")] %>% 
   group_by(Text_ID, IA_ID) %>%
   summarize(mean_OrthoMatchModel = mean(OrthoMatchModel)) %>%
+  ungroup() %>%
   right_join(REPORT,
              by = c("Text_ID" = "textnumber", "IA_ID" = "IA_ID")
              )
@@ -89,13 +90,13 @@ COMBINED <- COMBINED %>%
 vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING")
 COMBINED %>%
   select(vars) %>%
-  describeBy(group = "windowcondition")
-
+  group_by(windowcondition) %>%
+  summarize(mean(IA_FIRST_FIXATION_DURATION), sd(IA_FIRST_FIXATION_DURATION), mean(FIRST_LANDING), sd(FIRST_LANDING))
 
 
 ggplot(COMBINED,
-       aes(IA_FIRST_FIXATION_DURATION)) + 
-  geom_density()
+       aes(windowcondition, IA_FIRST_FIXATION_DURATION)) + 
+  geom_jitter()
 
 ```
 
@@ -114,10 +115,16 @@ firstFixation <- lmer(
   data = COMBINED
   )
 
+firstFixation <- lmer(
+  IA_FIRST_FIXATION_DURATION ~ windowcondition +
+    (1 + windowcondition|RECORDING_SESSION_LABEL),
+  data = COMBINED
+  )
+
   # landing zone
 landing <- lmer(
   FIRST_LANDING ~ windowcondition + 
-    (1|RECORDING_SESSION_LABEL),
+    (1 + windowcondition|RECORDING_SESSION_LABEL),
   data = COMBINED
 )
   # next saccade
