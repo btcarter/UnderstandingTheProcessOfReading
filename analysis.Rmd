@@ -2,7 +2,9 @@
 title: Understanding the Process of Reading
 author: Benjamin T. Carter
 date: 2019-10-24
-output: html_document
+output:
+  html_document:
+    code_folding: hide
 ---
 
 ## Environment
@@ -83,15 +85,26 @@ COMBINED <- COMBINED %>%
   mutate(
     FIRST_LANDING = (IA_FIRST_FIXATION_X - IA_LEFT) / (IA_RIGHT - IA_LEFT)
   )
+
+COMBINED$WORD_ID <- interaction(COMBINED$Text_ID, COMBINED$IA_ID, sep = ".") # create interaction variable
+
+# check out https://link.springer.com/article/10.3758/s13414-018-1581-0
+# log transform dependent variables, add additional variables from ^paper^
 ```
 
-### Summary Statistics
+### Summary Statistics by Window Condition
 ```{r}
-vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING")
-COMBINED %>%
+vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING", "IA_DWELL_TIME")
+summaryStats <- COMBINED %>%
   select(vars) %>%
   group_by(windowcondition) %>%
-  summarize(mean(IA_FIRST_FIXATION_DURATION), sd(IA_FIRST_FIXATION_DURATION), mean(FIRST_LANDING), sd(FIRST_LANDING))
+  summarize(
+    "First Fixation Duration - mean" = mean(IA_FIRST_FIXATION_DURATION),
+    "First Fixation Duration - sd" = sd(IA_FIRST_FIXATION_DURATION),
+    "First Fixation Location - mean" = mean(FIRST_LANDING),
+    "First Fixation Location - sd" = sd(FIRST_LANDING)) %>%
+  gather(Statistic, Value, "First Fixation Duration - mean":"Landing Spot - sd") %>%
+  spread(windowcondition, Value)
 
 
 ggplot(COMBINED,
@@ -101,25 +114,53 @@ ggplot(COMBINED,
 ```
 
 ### Models
-```{r}
+```{r echo = TRUE, message=FALSE, error=FALSE}
 # load libraries
 library(lme4)
 library(lmerTest)
 
 # models
   # first fixation duration
-firstFixation <- lmer(
+ortho <- lmer(
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(ortho)
+
+
+
+
+
+simple <- lmer(IA_FIRST_FIXATION_DURATION ~ windowcondition +
+                 (1 | RECORDING_SESSION_LABEL),
+               data = COMBINED
+                 )
+
+kable(simple, caption = "Simple Model with")
+
+simplePlus <- lmer(
   IA_FIRST_FIXATION_DURATION ~ windowcondition +
     (1|RECORDING_SESSION_LABEL) +
     (1|Text_ID),
   data = COMBINED
   )
 
-firstFixation <- lmer(
+complex <- lmer(
   IA_FIRST_FIXATION_DURATION ~ windowcondition +
     (1 + windowcondition|RECORDING_SESSION_LABEL),
   data = COMBINED
   )
+
+complexPlus <- lmer(
+  IA_FIRST_FIXATION_DURATION ~ windowcondition +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1 + windowcondition|Text_ID),
+  data = COMBINED
+  )
+
+kable
 
   # landing zone
 landing <- lmer(
