@@ -94,7 +94,7 @@ COMBINED$WORD_ID <- interaction(COMBINED$Text_ID, COMBINED$IA_ID, sep = ".") # c
 
 ### Summary Statistics by Window Condition
 ```{r}
-vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING", "IA_DWELL_TIME")
+vars <- c("windowcondition", "IA_FIRST_FIXATION_DURATION", "FIRST_LANDING", "IA_DWELL_TIME") # need to add skipping probability, single fixation duration, refixation probability, regression probability, total time, gaze duration.
 summaryStats <- COMBINED %>%
   select(vars) %>%
   group_by(windowcondition) %>%
@@ -120,7 +120,7 @@ library(lme4)
 library(lmerTest)
 
 # models
-  # first fixation duration
+  # first fixation duration - first attempt failed to converge
 ortho <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
@@ -129,8 +129,23 @@ ortho <- lmer(
 )
 summary(ortho)
 
+  # second attempt - also failed to converge
+ortho <- lmer(
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(ortho)
 
-
+  # third attempt - successful
+ortho <- lmer(
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(ortho)
 
 
 simple <- lmer(IA_FIRST_FIXATION_DURATION ~ windowcondition +
