@@ -54,7 +54,6 @@ REPORT <- read.delim(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = 
 ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = TRUE, sep = ",", fill = TRUE) # ortho probabilities
 
 # clean the interest areas report
-REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
 REPORT$RECORDING_SESSION_LABEL <- tolower(REPORT$RECORDING_SESSION_LABEL) # make label case consistent
 
 exclude <- c("s32", "s46", "s53", "s54", "s56", "s57", "s59", "s60", "s63") # exclude bad data
@@ -116,9 +115,7 @@ summaryStats <- COMBINED %>%
     "First Fixation Location - sd" = sd(FIRST_LANDING),
     "Dwell Time - mean" = mean(IA_DWELL_TIME),
     "Dwell Time - sd" = sd(IA_DWELL_TIME),
-    "Skipping probability" = formula,
-    "Refixation probability" = formula,
-    "Regression probability" = formula
+    "Skipping probability" = formula
     ) %>%
   gather(Statistic, Value, "First Fixation Duration - mean":"Landing Spot - sd") %>%
   spread(windowcondition, Value)
@@ -160,6 +157,9 @@ ggplot(COMBINED,
 ```
 
 ### Models for First Fixation Duration
+
+For the models below I excluded all interest areas that did not have a fixation.
+
 ```{r echo = FALSE, message=FALSE, error=FALSE}
 # load libraries
 library(lme4)
@@ -171,7 +171,7 @@ mod <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
-  data = COMBINED
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 
   # second attempt - also failed to converge
@@ -179,7 +179,7 @@ mod <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
-  data = COMBINED
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 
   # third attempt - successful
@@ -187,7 +187,7 @@ mod1 <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
-  data = COMBINED
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 summary(mod1)
 
@@ -196,7 +196,7 @@ mod <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
-  data = COMBINED
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 
   # fifth model - successful
@@ -204,7 +204,7 @@ mod2 <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
-  data = COMBINED
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 summary(mod2)
 ```
