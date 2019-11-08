@@ -57,7 +57,7 @@ ORTHOS <- read.csv(file.path(DIR,"Provo_Corpus-Eyetracking_Data.csv"), header = 
 REPORT <- REPORT[REPORT$IA_DWELL_TIME > 0,] # remove interest areas without a fixation in them.
 REPORT$RECORDING_SESSION_LABEL <- tolower(REPORT$RECORDING_SESSION_LABEL) # make label case consistent
 
-exclude <- c("s32", "s46", "s53", "s54", "s56", "s57", "s59", "s60", "s63") # exclude messy data
+exclude <- c("s32", "s46", "s53", "s54", "s56", "s57", "s59", "s60", "s63") # exclude bad data
 REPORT <- REPORT %>% subset(!(RECORDING_SESSION_LABEL %in% exclude))
 
 
@@ -79,12 +79,23 @@ rm(ORTHOS, REPORT) # unload unneeded data
 COMBINED$windowcondition <- as.factor(COMBINED$windowcondition)
 COMBINED$Text_ID <- as.factor(COMBINED$Text_ID)
 COMBINED$IA_ID <- as.factor(COMBINED$IA_ID)
+levels(COMBINED$windowcondition) <- list("No Preview"="0", "Preview" = "1")
 
 # add variable for how far into a word someone fixated
 COMBINED <- COMBINED %>%
   mutate(
     FIRST_LANDING = (IA_FIRST_FIXATION_X - IA_LEFT) / (IA_RIGHT - IA_LEFT)
   )
+
+# create skipping probability
+COMBINED <- COMBINED %>%
+  mutate(
+    SKIP_PROB = 
+  )
+
+# create refixation probability
+
+# create regression probability
 
 COMBINED$WORD_ID <- interaction(COMBINED$Text_ID, COMBINED$IA_ID, sep = ".") # create interaction variable
 
@@ -102,89 +113,175 @@ summaryStats <- COMBINED %>%
     "First Fixation Duration - mean" = mean(IA_FIRST_FIXATION_DURATION),
     "First Fixation Duration - sd" = sd(IA_FIRST_FIXATION_DURATION),
     "First Fixation Location - mean" = mean(FIRST_LANDING),
-    "First Fixation Location - sd" = sd(FIRST_LANDING)) %>%
+    "First Fixation Location - sd" = sd(FIRST_LANDING),
+    "Dwell Time - mean" = mean(IA_DWELL_TIME),
+    "Dwell Time - sd" = sd(IA_DWELL_TIME),
+    "Skipping probability" = formula,
+    "Refixation probability" = formula,
+    "Regression probability" = formula
+    ) %>%
   gather(Statistic, Value, "First Fixation Duration - mean":"Landing Spot - sd") %>%
   spread(windowcondition, Value)
 
+```
 
-ggplot(COMBINED,
-       aes(windowcondition, IA_FIRST_FIXATION_DURATION)) + 
-  geom_jitter()
+### Visualizing trends
+```{r echo = FALSE, message=FALSE, error=FALSE}
+ggplot(COMBINED, 
+       aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_FIXATION_DURATION, fill = windowcondition)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "The Effect of Preview and Frequency on First Fixation Duration ",
+    x = "Predictability",
+    y = "First Fixation Duration (ms)",
+    fill = "Window Condition"
+  )
+
+ggplot(COMBINED, 
+       aes(x = log(mean_OrthoMatchModel), y = IA_DWELL_TIME, fill = windowcondition)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "The Effect of Preview and Frequency on Dwell Time",
+    x = "Predictability",
+    y = "Total Dwell Time (ms)",
+    fill = "Window Condition"
+  )
+
+ggplot(COMBINED, 
+       aes(x = log(mean_OrthoMatchModel), y = FIRST_LANDING, fill = windowcondition)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "The Effect of Preview and Frequency on First Fixation Location",
+    x = "Predictability",
+    y = "First Fixation Location",
+    fill = "Window Condition"
+  )
 
 ```
 
-### Models
-```{r echo = TRUE, message=FALSE, error=FALSE}
+### Models for First Fixation Duration
+```{r echo = FALSE, message=FALSE, error=FALSE}
 # load libraries
 library(lme4)
 library(lmerTest)
 
 # models
-  # first fixation duration - first attempt failed to converge
-ortho <- lmer(
+  # first fixation duration - failed to converge
+mod <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED
 )
-summary(ortho)
 
   # second attempt - also failed to converge
-ortho <- lmer(
+mod <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED
 )
-summary(ortho)
 
   # third attempt - successful
-ortho <- lmer(
+mod1 <- lmer(
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(mod1)
+
+  # fourth model - failed to converge
+mod <- lmer(
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # fifth model - successful
+mod2 <- lmer(
   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED
 )
-summary(ortho)
+summary(mod2)
+```
 
-
-simple <- lmer(IA_FIRST_FIXATION_DURATION ~ windowcondition +
-                 (1 | RECORDING_SESSION_LABEL),
-               data = COMBINED
-                 )
-
-kable(simple, caption = "Simple Model with")
-
-simplePlus <- lmer(
-  IA_FIRST_FIXATION_DURATION ~ windowcondition +
-    (1|RECORDING_SESSION_LABEL) +
-    (1|Text_ID),
-  data = COMBINED
-  )
-
-complex <- lmer(
-  IA_FIRST_FIXATION_DURATION ~ windowcondition +
-    (1 + windowcondition|RECORDING_SESSION_LABEL),
-  data = COMBINED
-  )
-
-complexPlus <- lmer(
-  IA_FIRST_FIXATION_DURATION ~ windowcondition +
-    (1 + windowcondition|RECORDING_SESSION_LABEL) +
-    (1 + windowcondition|Text_ID),
-  data = COMBINED
-  )
-
-kable
-
-  # landing zone
-landing <- lmer(
-  FIRST_LANDING ~ windowcondition + 
-    (1 + windowcondition|RECORDING_SESSION_LABEL),
+### Models for Total Dwell Time
+```{r echo = FALSE, message=FALSE, error=FALSE}
+  # first model - failed to converge
+mod <- lmer(
+  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
   data = COMBINED
 )
-  # next saccade
-# nextSaccade <- lmer()
+
+  # second model - failed
+mod <- lmer(
+  log(IA_DWELL_TIME) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # third model
+mod3 <- lmer(
+  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(mod3)
+
+
+```
+
+### Models for First Fixation Position
+```{r echo = FALSE,echo=FALSE,message=FALSE}
+  # landing zone 1 - failed
+mod <- lmer(
+  FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # landing zone 2 - failed
+mod <- lmer(
+  FIRST_LANDING ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # landing zone 3 - failed
+mod <- lmer(
+  FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # landing zone 4 - failed
+mod <- lmer(
+  FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+
+  # landing zone 5 - successful
+mod4 <- lmer(
+  FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED
+)
+summary(mod4)
+
 ```
 
 
