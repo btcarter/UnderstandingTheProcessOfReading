@@ -16,6 +16,7 @@ library(tidyr)
 library(lme4)
 library(lmerTest)
 library(sjPlot)
+library(ggplot2)
 ```
 
 ## Cleaning statistics
@@ -49,12 +50,13 @@ REMAIN*100 # percent of fixations that were excluded or merged.
 ### Data Cleaning and Aggregation
 
 The following steps were taken during preprocessing and cleaning of the data:
+
 1. 9 total participants were excluded from the study due to poor eye tracking.
-1. Lexical predictability values were then referenced from the Provo Corpus and inserted as a variable.
-1. The variable `windowcondition` was changed from a numeric to a factor.
-1. `Text_ID` was changed from a string to a factor.
-1. `IA_ID` was changed from a numeric to a factor.
-1. The names of the levels for `windowcondition` were changed such that 0 became "No Preview" and 1 became "Preview" for ease of comparison and graphing later.
+2. Lexical predictability values were then referenced from the Provo Corpus and inserted as a variable.
+3. The variable `windowcondition` was changed from a numeric to a factor.
+4. `Text_ID` was changed from a string to a factor.
+5. `IA_ID` was changed from a numeric to a factor.
+6. The names of the levels for `windowcondition` were changed such that 0 became "No Preview" and 1 became "Preview" for ease of comparison and graphing later.
 1. A variable for the location of the first fixation was created (`FIRST_LANDING`).
 
 ```{r}
