@@ -7,7 +7,7 @@ output:
     code_folding: hide
 ---
 
-## Environment
+### Environment
 
 ```{r message = FALSE}
 library(dplyr)
@@ -136,11 +136,12 @@ sumStats2 <- COMBINED %>%
     "First Fixation Duration" = mean_sd(IA_FIRST_FIXATION_DURATION),
     "First Fixation Location" = mean_sd(FIRST_LANDING),
     "Dwell Time" = mean_sd(IA_DWELL_TIME),
+    "Gaze Duration" = mean_sd(IA_FIRST_RUN_DWELL_TIME)
     ) %>%
-  gather(Statistic, Value, "First Fixation Duration":"Dwell Time") %>%
+  gather(Statistic, Value, "First Fixation Duration":"Gaze Duration") %>%
   spread(windowcondition, Value)
 
-# need to add single fixation duration, total time, gaze duration.
+# need to add single fixation duration, total time.
 
 # combine into single table
 sumStats <- rbind(sumStats2,sumStats1)
@@ -169,6 +170,16 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
     title = "The Effect of Preview and Frequency on Dwell Time",
     x = "log Predictability",
     y = "Total Dwell Time (ms)",
+    fill = "Window Condition"
+  )
+
+ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
+       aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_RUN_DWELL_TIME, fill = windowcondition)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "The Effect of Preview and Frequency on Gaze Duration",
+    x = "log Predictability",
+    y = " Gaze Duration (ms)",
     fill = "Window Condition"
   )
 
@@ -302,7 +313,34 @@ mod4 <- lmer(
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
 tab_model(mod4)
+```
 
+### Model for Gaze Duration
+```{r}
+# gaze duration 1 - boundary (singular)
+# mod <- lmer(
+#    IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+#      (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+#      (1|WORD_ID),
+#    data = COMBINED
+#  )
+
+# gaze duration 2 - failed to converge
+# mod <- lmer(
+#    IA_FIRST_RUN_DWELL_TIME ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
+#      (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+#      (1|WORD_ID),
+#    data = COMBINED
+#  )
+
+# gaze duration 3
+mod5 <- lmer(
+   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+     (1 + windowcondition|RECORDING_SESSION_LABEL) +
+     (1|WORD_ID),
+   data = COMBINED
+ )
+tab_model(mod5)
 ```
 
 
