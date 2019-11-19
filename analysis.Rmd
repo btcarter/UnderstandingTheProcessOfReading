@@ -2,9 +2,7 @@
 title: Understanding the Process of Reading
 author: Benjamin T. Carter
 date: 2019-10-24
-output:
-  html_document:
-    code_folding: hide
+output: word_document
 ---
 
 ### Environment
@@ -59,7 +57,7 @@ The following steps were taken during preprocessing and cleaning of the data:
 6. The names of the levels for `windowcondition` were changed such that 0 became "No Preview" and 1 became "Preview" for ease of comparison and graphing later.
 1. A variable for the location of the first fixation was created (`FIRST_LANDING`).
 
-```{r}
+```{r error=FALSE, message=FALSE, echo=FALSE}
 # read in the data
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
 REPORT <- read.delim(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE, na.strings = ".") # interest areas report
@@ -106,7 +104,7 @@ COMBINED$WORD_ID <- interaction(COMBINED$Text_ID, COMBINED$IA_ID, sep = ".") # c
 
 ### Summary Statistics by Window Condition
 
-```{r}
+```{r error=FALSE, message=FALSE, echo=FALSE}
 # Skipping, refixation and regression probability
 mean_sd <- function(a) {
   b <- round(mean(a, na.rm = TRUE), digits = 2)
@@ -143,8 +141,6 @@ sumStats2 <- COMBINED %>%
   gather(Statistic, Value, "First Fixation Duration":"Gaze Duration") %>%
   spread(windowcondition, Value)
 
-# need to add single fixation duration, total time.
-
 # combine into single table
 sumStats <- rbind(sumStats2,sumStats1)
 knitr::kable(sumStats)
@@ -152,9 +148,9 @@ knitr::kable(sumStats)
 
 ### Visualizing trends
 
-I constructed some visualizations of the effect of window condition and text predictability on first fixation duration, dwell time, and location of first fixation. The most pronounced effects are for the first fixation, with little apparent effect for location.
+I constructed some visualizations of the effect of window condition and text predictability on first fixation duration, gaze duration, and total dwell time. The most pronounced effects are for the first fixation.
 
-```{r}
+```{r error=FALSE, message=FALSE, echo=FALSE}
 ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
        aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_FIXATION_DURATION, fill = windowcondition)) +
   geom_smooth(method = "lm") +
@@ -162,6 +158,16 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
     title = "The Effect of Preview and Frequency on First Fixation Duration ",
     x = "log Predictability",
     y = "First Fixation Duration (ms)",
+    fill = "Window Condition"
+  )
+
+ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
+       aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_RUN_DWELL_TIME, fill = windowcondition)) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "The Effect of Preview and Frequency on Gaze Duration",
+    x = "log Predictability",
+    y = "Gaze Duration (ms)",
     fill = "Window Condition"
   )
 
@@ -175,25 +181,17 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
     fill = "Window Condition"
   )
 
-ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
-       aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_RUN_DWELL_TIME, fill = windowcondition)) +
-  geom_smooth(method = "lm") +
-  labs(
-    title = "The Effect of Preview and Frequency on Gaze Duration",
-    x = "log Predictability",
-    y = " Gaze Duration (ms)",
-    fill = "Window Condition"
-  )
 
-ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
-       aes(x = log(mean_OrthoMatchModel), y = FIRST_LANDING, fill = windowcondition)) +
-  geom_smooth(method = "lm") +
-  labs(
-    title = "The Effect of Preview and Frequency on First Fixation Location",
-    x = "log Predictability",
-    y = "First Fixation Location",
-    fill = "Window Condition"
-  )
+
+# ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
+#        aes(x = log(mean_OrthoMatchModel), y = FIRST_LANDING, fill = windowcondition)) +
+#   geom_smooth(method = "lm") +
+#   labs(
+#     title = "The Effect of Preview and Frequency on First Fixation Location",
+#     x = "log Predictability",
+#     y = "First Fixation Location",
+#     fill = "Window Condition"
+#   )
 
 ```
 
@@ -201,7 +199,7 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
 
 For the models below I excluded all interest areas that did not have a fixation.
 
-```{r}
+```{r error=FALSE, message=FALSE, echo=FALSE}
 # first fixation duration - failed to converge
 # mod <- lmer(
 #   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -225,7 +223,8 @@ mod1 <- lmer(
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
-tab_model(mod1)
+tab1 <- summary(mod1)
+knitr::kable(tab1$coefficients[,-3])
 
   # fourth model - failed to converge
 # mod <- lmer(
@@ -242,83 +241,12 @@ mod2 <- lmer(
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
 )
-tab_model(mod2)
-```
-
-### Model for Total Dwell Time
-```{r}
- # first model - failed to converge
-# mod <- lmer(
-#   log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # second model - failed
-# mod <- lmer(
-#   log(IA_DWELL_TIME) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # third model
-mod3 <- lmer(
-  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-    (1 + windowcondition|RECORDING_SESSION_LABEL) +
-    (1|WORD_ID),
-  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
-)
-tab_model(mod3)
-```
-
-### Model for First Fixation Position
-```{r}
-  # landing zone 1 - failed
-# mod <- lmer(
-#   FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # landing zone 2 - failed
-# mod <- lmer(
-#   FIRST_LANDING ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # landing zone 3 - failed
-# mod <- lmer(
-#   FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + windowcondition|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # landing zone 4 - failed
-# mod <- lmer(
-#   FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-#     (1 + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
-#     (1|WORD_ID),
-#   data = COMBINED
-# )
-
-  # landing zone 5 - successful
-mod4 <- lmer(
-  FIRST_LANDING ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-    (1|RECORDING_SESSION_LABEL) +
-    (1|WORD_ID),
-  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
-)
-tab_model(mod4)
+tab2 <- summary(mod2)
+knitr::kable(tab2$coefficients[,-3])
 ```
 
 ### Model for Gaze Duration
-```{r}
+```{r error=FALSE, message=FALSE, echo=FALSE}
 # gaze duration 1 - boundary (singular)
 # mod <- lmer(
 #    IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -342,7 +270,39 @@ mod5 <- lmer(
      (1|WORD_ID),
    data = COMBINED
  )
-tab_model(mod5)
+tab5 <- summary(mod5)
+knitr::kable(tab5$coefficients[,-3])
 ```
+
+
+### Model for Total Dwell Time
+```{r error=FALSE, message=FALSE, echo=FALSE}
+ # first model - failed to converge
+# mod <- lmer(
+#   log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+#     (1 + windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+#     (1|WORD_ID),
+#   data = COMBINED
+# )
+
+  # second model - failed
+# mod <- lmer(
+#   log(IA_DWELL_TIME) ~ windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE) +
+#     (1 + windowcondition + scale(log(mean_OrthoMatchModel), scale = FALSE)|RECORDING_SESSION_LABEL) +
+#     (1|WORD_ID),
+#   data = COMBINED
+# )
+
+  # third model
+mod3 <- lmer(
+  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+    (1 + windowcondition|RECORDING_SESSION_LABEL) +
+    (1|WORD_ID),
+  data = COMBINED %>% filter(IA_DWELL_TIME > 0)
+)
+tab3 <- summary(mod3)
+knitr::kable(tab3$coefficients[,-3])
+```
+
 
 
