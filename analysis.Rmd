@@ -1,8 +1,11 @@
 ---
-title: Understanding the Process of Reading
-author: Benjamin T. Carter
-date: 2019-10-24
-output: word_document
+title: "Understanding the Process of Reading"
+author: "Benjamin T. Carter"
+date: '2019-10-24'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
 ---
 
 ### Environment
@@ -57,6 +60,10 @@ The following steps were taken during preprocessing and cleaning of the data:
 6. The names of the levels for `windowcondition` were changed such that 0 became "No Preview" and 1 became "Preview" for ease of comparison and graphing later.
 1. A variable for the location of the first fixation was created (`FIRST_LANDING`).
 
+####  Changes from V1
+1. The number of characters in each word was entered as a separate variable (`N_CHAR`).
+1. All words not fixated in first pass ('IA_SKIP' = 1) have now been removed from the analysis.
+
 ```{r error=FALSE, message=FALSE, echo=FALSE}
 # read in the data
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
@@ -98,6 +105,12 @@ COMBINED <- COMBINED %>%
 
 COMBINED$WORD_ID <- interaction(COMBINED$Text_ID, COMBINED$IA_ID, sep = ".") # create interaction variable
 
+# word length
+COMBINED$N_CHAR <- nchar(as.character(COMBINED$IA_LABEL))
+
+# remove words that were not skipped the first time through.
+COMBINED <- COMBINED[COMBINED$IA_SKIP != 1,]
+
 # check out https://link.springer.com/article/10.3758/s13414-018-1581-0
 # log transform dependent variables, add additional variables from ^paper^
 ```
@@ -122,11 +135,10 @@ sumStats1 <- COMBINED %>%
   ungroup() %>%
   group_by(windowcondition) %>%
   summarise(
-    "Skipping probability" = mean_sd(skipping_prob),
     "Refixation probability" = mean_sd(refixation_prob),
     "Regression probability" = mean_sd(regression_prob)
   ) %>%
-  gather(Statistic, Value, "Skipping probability":"Regression probability") %>%
+  gather(Statistic, Value, "Refixation probability":"Regression probability") %>%
   spread(windowcondition, Value)
 
 # first fixation duration, location and dwell time
@@ -187,13 +199,17 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
 
 For the models below I excluded all interest areas that did not have a fixation.
 
+#### Updates
+
+Word length (N_CHAR) has been added to test for an interaction.
+
 ### Model for First Fixation Duration
 
 I constructed two models for Fixation Duration. The first incorporated random slopes by window condition for each participant. The second did not.
 
 #### Model 1:
 
-`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
 ```{r error=FALSE, message=FALSE, echo=FALSE}
 # first fixation duration - failed to converge
@@ -214,7 +230,7 @@ I constructed two models for Fixation Duration. The first incorporated random sl
 
   # third attempt - successful
 mod1 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -225,7 +241,7 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
 #### Model 2:
 
-`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
 ```{r error=FALSE, message=FALSE, echo=FALSE}
   # fourth model - failed to converge
@@ -238,7 +254,7 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
   # fifth model - successful
 mod2 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR +
     (1|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -250,7 +266,7 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 
 ### Model for Gaze Duration
 
-`IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
 ```{r error=FALSE, message=FALSE, echo=FALSE}
 # gaze duration 1 - boundary (singular)
@@ -269,12 +285,20 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 #    data = COMBINED
 #  )
 
-# gaze duration 3
+# gaze duration 3 - failed to converge
+# mod <- lmer(
+#    IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+#      (1 + windowcondition|RECORDING_SESSION_LABEL) +
+#      (1|WORD_ID),
+#    data = COMBINED %>% filter(IA_DWELL_TIME > 0)
+#  )
+
+# gaze duration 4
 mod5 <- lmer(
-   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
-     (1 + windowcondition|RECORDING_SESSION_LABEL) +
+   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR +
+     (1|RECORDING_SESSION_LABEL) +
      (1|WORD_ID),
-   data = COMBINED
+   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
  )
 tab5 <- summary(mod5)
 knitr::kable(tab5$coefficients[,-3], digits = 3)
@@ -283,7 +307,7 @@ knitr::kable(tab5$coefficients[,-3], digits = 3)
 
 ### Model for Total Dwell Time
 
-`log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
 ```{r error=FALSE, message=FALSE, echo=FALSE}
  # first model - failed to converge
@@ -304,7 +328,7 @@ knitr::kable(tab5$coefficients[,-3], digits = 3)
 
   # third model
 mod3 <- lmer(
-  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
+  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * N_CHAR +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
