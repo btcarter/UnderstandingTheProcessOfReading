@@ -1,9 +1,10 @@
 ---
 title: "Understanding the Process of Reading"
 author: "Benjamin T. Carter"
-date: '2019-10-24'
+date: '2019-11-26'
 output:
-  word_document: default
+  word_document:
+    reference_docx: style.docx
   html_document:
     df_print: paged
     code_folding: hide
@@ -21,11 +22,11 @@ library(sjPlot)
 library(ggplot2)
 ```
 
-## Data Viewer cleaning
+## Data Viewer Cleaning
 
-These are some shortcuts that can be used to view the cleaning stats via command line.
+<!-- These are some shortcuts that can be used to view the cleaning stats via command line. -->
 
-```{bash}
+```{bash bash_shortcuts}
 # DIRECT=~/Box/LukeLab/UnderstandingTheProcessOfReading/data
 # DATA=${DIRECT}/cleaning\ -\ UPoR1.txt # file with cleaning stats
 
@@ -35,7 +36,7 @@ These are some shortcuts that can be used to view the cleaning stats via command
 # tail -2 ${DATA}/cleaning-UPoR1.txt # read in last two lines
 ```
 
-```{r echo=FALSE, error=FALSE, message=FALSE}
+```{r dataViewer_stats, echo=FALSE, error=FALSE, message=FALSE}
 MERGED <- 738
 DELETED <- 9985
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
@@ -47,7 +48,7 @@ PER <- REMAIN*100 # percent of fixations that were excluded or merged.
 
 `r PER`% of the fixations were excluded or merged by Data Viewer.
 
-## Behavior
+## R Analysis
 
 ### Data Cleaning and Aggregation
 
@@ -62,7 +63,7 @@ The following steps were taken during preprocessing and cleaning of the data:
 1. A variable for the location of the first fixation was created (`FIRST_LANDING`).
 
 ####  Changes from V1
-1. The number of characters in each word was entered as a separate variable (`Word_Length`).
+1. The number of characters in each word was entered as a separate variable (`Word_Length` from the Provo Corpus).
 1. All words not fixated in first pass ('IA_SKIP' = 1) have now been removed from the analysis.
 
 ####  Changes from V2
@@ -70,7 +71,11 @@ The following steps were taken during preprocessing and cleaning of the data:
 1. Function words have been excluded.
 1. Words following a skipped word are excluded.
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+#### Changes from V3
+1. Word_Length was centered via scale.
+1. Word_Length interaction was removed.
+
+```{r preprocessing, error=FALSE, message=FALSE, echo=FALSE}
 # read in the data
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
 REPORT <- read.delim(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE, na.strings = ".") # interest areas report
@@ -94,7 +99,6 @@ COMBINED <- ORTHOS[c("Text_ID","IA_ID","OrthoMatchModel","Word_Length","Word_Con
   right_join(REPORT,
              by = c("Text_ID" = "textnumber", "IA_ID" = "IA_ID")
              )
-
 
 COMBINED <- COMBINED[!is.na(COMBINED$mean_OrthoMatchModel),] # remove na values
 rm(ORTHOS, REPORT) # unload unneeded data
@@ -127,7 +131,10 @@ COMBINED <- COMBINED %>%
     IA_SKIP != 1, # remove words that were not skipped the first time through.
     Word_Content_Or_Function == "Content", # keep content words
     IA_SKIP_PREV == 0 # keep words that did not have the previous word skipped.
-    )
+    ) %>%
+  mutate(
+    Word_Length = scale(Word_Length, scale = FALSE)
+  )
 
 # check out https://link.springer.com/article/10.3758/s13414-018-1581-0
 # log transform dependent variables, add additional variables from ^paper^
@@ -135,7 +142,7 @@ COMBINED <- COMBINED %>%
 
 ### Summary Statistics by Window Condition
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r summary_stats, error=FALSE, message=FALSE, echo=FALSE}
 # Skipping, refixation and regression probability
 mean_sd <- function(a) {
   b <- round(mean(a, na.rm = TRUE), digits = 2)
@@ -180,7 +187,7 @@ knitr::kable(sumStats)
 
 I constructed some visualizations of the effect of window condition and text predictability on first fixation duration, gaze duration, and total dwell time. The most pronounced effects are for the first fixation.
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r trends, error=FALSE, message=FALSE, echo=FALSE}
 ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
        aes(x = log(mean_OrthoMatchModel), y = IA_FIRST_FIXATION_DURATION, fill = windowcondition)) +
   geom_smooth(method = "lm") +
@@ -217,19 +224,15 @@ ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0),
 
 For the models below I excluded all interest areas that did not have a fixation.
 
-#### Updates
-
-Word length (Word_Length) has been added to test for an interaction.
-
 ### Model for First Fixation Duration
 
 I constructed two models for Fixation Duration. The first incorporated random slopes by window condition for each participant. The second did not.
 
 #### Model 1:
 
-`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r fixationDuration_1, error=FALSE, message=FALSE, echo=FALSE}
 # first fixation duration - failed to converge
 # mod <- lmer(
 #   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -248,7 +251,7 @@ I constructed two models for Fixation Duration. The first incorporated random sl
 
   # third attempt - successful
 mod1 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -259,9 +262,9 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
 #### Model 2:
 
-`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r fixationDuration_2, error=FALSE, message=FALSE, echo=FALSE}
   # fourth model - failed to converge
 # mod <- lmer(
 #   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -272,7 +275,7 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
   # fifth model - successful
 mod2 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
     (1|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -284,9 +287,9 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 
 ### Model for Gaze Duration
 
-`IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r gazeDuration, error=FALSE, message=FALSE, echo=FALSE}
 # gaze duration 1 - boundary (singular)
 # mod <- lmer(
 #    IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -313,7 +316,7 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 
 # gaze duration 4
 mod5 <- lmer(
-   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length +
+   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
      (1|RECORDING_SESSION_LABEL) +
      (1|WORD_ID),
    data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -325,9 +328,9 @@ knitr::kable(tab5$coefficients[,-3], digits = 3)
 
 ### Model for Total Dwell Time
 
-`log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r error=FALSE, message=FALSE, echo=FALSE}
+```{r dwellTime, error=FALSE, message=FALSE, echo=FALSE}
  # first model - failed to converge
 # mod <- lmer(
 #   log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -346,7 +349,7 @@ knitr::kable(tab5$coefficients[,-3], digits = 3)
 
   # third model
 mod3 <- lmer(
-  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) * Word_Length +
+  log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
