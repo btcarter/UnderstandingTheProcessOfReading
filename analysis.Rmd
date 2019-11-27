@@ -3,11 +3,11 @@ title: "Understanding the Process of Reading"
 author: "Benjamin T. Carter"
 date: '2019-11-26'
 output:
+  word_document:
+    reference_docx: style.docx
   html_document:
     df_print: paged
     code_folding: hide
-  word_document:
-    reference_docx: style.docx
 ---
 
 ### Environment
@@ -36,7 +36,7 @@ library(ggplot2)
 # tail -2 ${DATA}/cleaning-UPoR1.txt # read in last two lines
 ```
 
-```{r dataViewer_stats, echo=TRUE, error=FALSE, message=FALSE}
+```{r dataViewer_stats, echo=FALSE, error=FALSE, message=FALSE}
 MERGED <- 738
 DELETED <- 9985
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
@@ -75,7 +75,7 @@ The following steps were taken during preprocessing and cleaning of the data:
 1. Word_Length was centered via scale.
 1. Word_Length interaction was removed.
 
-```{r preprocessing, error=FALSE, message=FALSE, echo=TRUE}
+```{r preprocessing, error=FALSE, message=FALSE, echo=FALSE}
 # read in the data
 DIR <- file.path("~","Box","LukeLab","UnderstandingTheProcessOfReading","data") # study directory
 REPORT <- read.delim(file.path(DIR,"IA_report_UPoR1.txt"), header = TRUE, sep = "\t", fill = TRUE, na.strings = ".") # interest areas report
@@ -142,7 +142,7 @@ COMBINED <- COMBINED %>%
 
 ### Summary Statistics by Window Condition
 
-```{r summary_stats, error=FALSE, message=FALSE, echo=TRUE}
+```{r summary_stats, error=FALSE, message=FALSE, echo=FALSE}
 # Skipping, refixation and regression probability
 mean_sd <- function(a) {
   b <- round(mean(a, na.rm = TRUE), digits = 2)
@@ -187,7 +187,7 @@ knitr::kable(sumStats)
 
 I constructed some visualizations of the effect of window condition and text predictability on first fixation duration, gaze duration, and total dwell time. The most pronounced effects are for the first fixation.
 
-```{r trends, error=FALSE, message=FALSE, echo=TRUE}
+```{r trends, error=FALSE, message=FALSE, echo=FALSE}
 ggplot(COMBINED %>% filter(IA_DWELL_TIME > 0), 
        aes(x = scale(log(mean_OrthoMatchModel), scale = FALSE), y = IA_FIRST_FIXATION_DURATION, fill = windowcondition)) +
   geom_smooth(method = "lm") +
@@ -230,9 +230,9 @@ I constructed two models for Fixation Duration. The first incorporated random sl
 
 #### Model 1:
 
-`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r fixationDuration_1, error=FALSE, message=FALSE, echo=TRUE}
+```{r fixationDuration_1, error=FALSE, message=FALSE, echo=FALSE}
 # first fixation duration - failed to converge
 # mod <- lmer(
 #   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -251,7 +251,7 @@ I constructed two models for Fixation Duration. The first incorporated random sl
 
   # third attempt - successful
 mod1 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1 + windowcondition|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -262,9 +262,9 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
 #### Model 2:
 
-`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r fixationDuration_2, error=FALSE, message=FALSE, echo=TRUE}
+```{r fixationDuration_2, error=FALSE, message=FALSE, echo=FALSE}
   # fourth model - failed to converge
 # mod <- lmer(
 #   log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -275,7 +275,7 @@ knitr::kable(tab1$coefficients[,-3], digits = 3)
 
   # fifth model - successful
 mod2 <- lmer(
-  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
+  log(IA_FIRST_FIXATION_DURATION) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
     (1|RECORDING_SESSION_LABEL) +
     (1|WORD_ID),
   data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -287,9 +287,9 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 
 ### Model for Gaze Duration
 
-`IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
+`log(IA_FIRST_RUN_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r gazeDuration, error=FALSE, message=FALSE, echo=TRUE}
+```{r gazeDuration, error=FALSE, message=FALSE, echo=FALSE}
 # gaze duration 1 - boundary (singular)
 # mod <- lmer(
 #    IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
@@ -316,7 +316,7 @@ knitr::kable(tab2$coefficients[,-3], digits = 3)
 
 # gaze duration 4
 mod5 <- lmer(
-   IA_FIRST_RUN_DWELL_TIME ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + Word_Length +
+   log(IA_FIRST_RUN_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
      (1|RECORDING_SESSION_LABEL) +
      (1|WORD_ID),
    data = COMBINED %>% filter(IA_DWELL_TIME > 0)
@@ -330,7 +330,7 @@ knitr::kable(tab5$coefficients[,-3], digits = 3)
 
 `log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) + (1 + windowcondition|RECORDING_SESSION_LABEL) + (1|WORD_ID)`
 
-```{r dwellTime, error=FALSE, message=FALSE, echo=TRUE}
+```{r dwellTime, error=FALSE, message=FALSE, echo=FALSE}
  # first model - failed to converge
 # mod <- lmer(
 #   log(IA_DWELL_TIME) ~ windowcondition * scale(log(mean_OrthoMatchModel), scale = FALSE) +
